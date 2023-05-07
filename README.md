@@ -1,2 +1,2 @@
 # study partner
-converting wav files to text
+setting up a program for study partners
