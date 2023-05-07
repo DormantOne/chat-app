@@ -1,2 +1,2 @@
-# speech-to-text
+# study partner
 converting wav files to text
