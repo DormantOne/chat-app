@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Simple Two-User Chat App</title>
+<title>Simple Two-User Chat App with AI</title>
 <!-- Include Firebase library -->
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+<!-- Include Axios for HTTP requests -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <style>
   /* Add your styles here */
   #messages {
@@ -34,6 +36,11 @@
   .highlight {
     background-color: yellow;
   }
+  /* Style for AI messages */
+  .ai-message {
+    color: blue;
+    font-style: italic;
+  }
 </style>
 </head>
 <body>
@@ -50,7 +57,7 @@
 </div>
 
 <script>
-  // Your web app's Firebase configuration
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDjoJLs5aBD6STfreiO09ciYbIC-zcHACg",
   authDomain: "chatassist-3a97b.firebaseapp.com",
@@ -61,73 +68,75 @@ const firebaseConfig = {
   measurementId: "G-SLR0WFQPPS"
 };
 
-  // Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+// Initialize Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+let userName = '';
+let sharedTextContent = ''; // Variable to store shared text content
 
-  let userName = '';
+document.getElementById('username').addEventListener('change', function() {
+  userName = this.value;
+});
 
-  document.getElementById('username').addEventListener('change', function() {
-    userName = this.value;
-  });
+// Function to send message
+function sendMessage() {
+  const messageInput = document.getElementById('message-input');
+  const message = messageInput.value.trim();
+  if (message && userName) {
+    db.collection("messages").add({
+      name: userName,
+      text: message,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+      messageInput.value = '';
+      // After sending a message, call AI to respond
+      generateAIResponse(sharedTextContent, message);
+    })
+    .catch((error) => {
+      console.error("Error writing message: ", error);
+    });
+  } else if (!userName) {
+    alert('Please enter your name.');
+  } else {
+    alert('Please type a message.');
+  }
+}
 
-  // Function to send message
-  function sendMessage() {
-    const messageInput = document.getElementById('message-input');
-    const message = messageInput.value.trim();
-    if (message && userName) {
-      db.collection("messages").add({
-        name: userName,
-        text: message,
+// Function to load and display the text file and upload to Firestore
+function loadTextFile() {
+  const fileInput = document.getElementById('text-upload');
+  const file = fileInput.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      sharedTextContent = e.target.result; // Store the shared text content
+      document.getElementById('uploaded-text').textContent = sharedTextContent;
+      db.collection("shared-texts").doc("session1").set({
+        content: sharedTextContent,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       })
-      .then(() => {
-        messageInput.value = '';
-      })
       .catch((error) => {
-        console.error("Error writing message: ", error);
+        console.error("Error uploading text: ", error);
       });
-    } else if (!userName) {
-      alert('Please enter your name.');
-    } else {
-      alert('Please type a message.');
-    }
+    };
+    reader.readAsText(file);
   }
+}
 
-  // Function to load and display the text file and upload to Firestore
-  function loadTextFile() {
-    const fileInput = document.getElementById('text-upload');
-    const file = fileInput.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const text = e.target.result;
-        document.getElementById('uploaded-text').textContent = text;
-        db.collection("shared-texts").doc("session1").set({
-          content: text,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        })
-        .catch((error) => {
-          console.error("Error uploading text: ", error);
-        });
-      };
-      reader.readAsText(file);
-    }
+// Function to search and highlight text
+function searchText() {
+  let text = document.getElementById('uploaded-text').textContent;
+  let searchQuery = document.getElementById('search-text').value;
+  const textContainer = document.getElementById('uploaded-text');
+  textContainer.innerHTML = text; // Remove previous highlights
+  searchQuery = searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  if (searchQuery) {
+    const pattern = new RegExp(`(${searchQuery})`, 'gi');
+    const newText = text.replace(pattern, '<span class="highlight">$1</span>');
+    textContainer.innerHTML = newText;
   }
-
-  // Function to search and highlight text
-  function searchText() {
-    let text = document.getElementById('uploaded-text').textContent;
-    let searchQuery = document.getElementById('search-text').value;
-    const textContainer = document.getElementById('uploaded-text');
-    textContainer.innerHTML = text; // Remove previous highlights
-    searchQuery = searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    if (searchQuery) {
-      const pattern = new RegExp(`(${searchQuery})`, 'gi');
-      const newText = text.replace(pattern, '<span class="highlight">$1</span>');
-      textContainer.innerHTML = newText;
-    }
-  }
+}
 
 // Real-time listener for chat
 db.collection("messages").orderBy("timestamp")
@@ -146,12 +155,56 @@ db.collection("messages").orderBy("timestamp")
 db.collection("shared-texts").doc("session1")
   .onSnapshot((doc) => {
     if (doc.exists) {
+      sharedTextContent = doc.data().content; // Update shared text content
       const textContainer = document.getElementById('uploaded-text');
-      textContainer.textContent = doc.data().content;
+      textContainer.textContent = sharedTextContent;
       // Call the search function to reapply highlighting if there's a search term
       searchText();
     }
   });
+
+// Function to generate AI response based on the last message and shared text
+function generateAIResponse(textContent, lastMessage) {
+  // For simplicity, we're using OpenAI's API directly from the client-side
+  // In a production environment, this should be done via a server to secure your API key
+  // and manage the usage to prevent abuse.
+  axios.post('https://api.openai.com/v1/chat/completions', {
+    model: "gpt-4-32k",
+    messages: [
+      {
+        role: "system",
+        content: "You are a knowledgeable assistant that provides commentary on the shared text. and last chat message"
+      },
+      {
+        role: "user",
+        content: "TEXT UNDER REVIEW: " + textContent + "\nLAST USER MESSAGE: " + lastMessage
+      }
+    ],
+    max_tokens: 150
+  }, {
+    headers: {
+      'Authorization': `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`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    const aiResponse = response.data.choices[0].message.content;
+    displayAIResponse(aiResponse);
+  })
+  .catch(error => {
+    console.error("Error generating AI response: ", error);
+  });
+}
+
+// Function to display AI response in the chat
+function displayAIResponse(aiResponse) {
+  const messagesContainer = document.getElementById('messages');
+  const messageDiv = document.createElement('div');
+  messageDiv.textContent = `AI: ${aiResponse}`;
+  messageDiv.classList.add('ai-message');
+  messagesContainer.appendChild(messageDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
 
 </script>
 </body>
