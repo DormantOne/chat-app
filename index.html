@@ -1,73 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        #chat {
-            height: 80vh;
-            overflow-y: scroll;
-            border: 1px solid #ccc;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        #message-input {
-            width: 80%;
-            padding: 0.5rem;
-        }
-        #send-button {
-            width: 18%;
-            padding: 0.5rem;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 2px 2px;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Simple Two-User Chat App</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f7f7f7;
+  }
+  #chat-container {
+    width: 80%;
+    max-width: 600px;
+    margin: auto;
+  }
+  #messages {
+    border: 1px solid #ddd;
+    padding: 10px;
+    height: 300px;
+    overflow-y: auto;
+    background: #fff;
+    margin-bottom: 20px;
+  }
+  #user-form {
+    display: flex;
+    margin-bottom: 10px;
+  }
+  #user-form input {
+    flex: 1;
+    padding: 10px;
+    margin-right: 10px;
+  }
+  #user-form button {
+    padding: 10px;
+  }
+  #chat-form {
+    display: flex;
+  }
+  #chat-form input {
+    flex: 1;
+    padding: 10px;
+    margin-right: 10px;
+  }
+  #chat-form button {
+    padding: 10px;
+  }
+</style>
 </head>
 <body>
-    <h1>Welcome to the Chat App</h1>
-    <div id="chat"></div>
-    <input type="text" id="message-input" placeholder="Type your message...">
-    <button id="send-button">Send</button>
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        const chat = document.getElementById('chat');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
+<div id="chat-container">
+  <div id="user-form">
+    <input type="text" id="username" placeholder="Enter your name" required>
+    <button onclick="enterChat()">Enter Chat</button>
+  </div>
+  <div id="messages"></div>
+  <div id="chat-form" style="display:none;">
+    <input type="text" id="message" placeholder="Type a message" required>
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
 
-        socket.on('message', (data) => {
-            const messageElement = document.createElement('p');
-            messageElement.textContent = data;
-            chat.appendChild(messageElement);
-            chat.scrollTop = chat.scrollHeight;
-        });
+<script>
+  let userName = '';
 
-        sendButton.addEventListener('click', () => {
-            const message = messageInput.value;
-            socket.emit('message', message);
-            messageInput.value = '';
-        });
+  function enterChat() {
+    userName = document.getElementById('username').value.trim();
+    if (userName) {
+      document.getElementById('user-form').style.display = 'none';
+      document.getElementById('chat-form').style.display = 'flex';
+    } else {
+      alert('Please enter your name to continue.');
+    }
+  }
 
-        messageInput.addEventListener('keypress', (event) => {
-            if (event.keyCode === 13) {
-                event.preventDefault();
-                sendButton.click();
-            }
-        });
-    </script>
+  function sendMessage() {
+    const messageInput = document.getElementById('message');
+    const message = messageInput.value.trim();
+    if (message) {
+      const messagesContainer = document.getElementById('messages');
+      const newMessageDiv = document.createElement('div');
+      newMessageDiv.textContent = `${userName}: ${message}`;
+      messagesContainer.appendChild(newMessageDiv);
+      messageInput.value = '';
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    } else {
+      alert('Please type a message.');
+    }
+  }
+</script>
 </body>
 </html>
