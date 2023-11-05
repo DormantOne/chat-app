@@ -7,11 +7,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-functions-compat.js"></script>
-<!-- Include Axios for HTTP requests (You can remove this since it's no longer needed for calling the API) -->
-<!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
-</script>
-<!-- Include Axios for HTTP requests -->
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <style>
   /* Add your styles here */
   #messages {
@@ -178,24 +173,35 @@ function generateAIResponse(textContent, lastMessage) {
       // Read result of the Cloud Function and display the AI response
       const aiResponse = result.data.aiResponse;
       displayAIResponse(aiResponse);
+      // Write AI response to Firestore
+      return db.collection("messages").add({
+        name: 'AI',
+        text: aiResponse,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    })
+    .then(() => {
+      console.log("AI response written to Firestore");
     })
     .catch((error) => {
       // Getting the Error details
       const code = error.code;
       const message = error.message;
       const details = error.details;
-      console.error("Error generating AI response: ", message);
+      console.error("Error generating or storing AI response: ", message);
     });
 }
-
 
 // Function to display AI response in the chat
 function displayAIResponse(aiResponse) {
   const messagesContainer = document.getElementById('messages');
+  // Create a div element for AI response
   const messageDiv = document.createElement('div');
   messageDiv.textContent = `AI: ${aiResponse}`;
   messageDiv.classList.add('ai-message');
+  // Append the AI response to the messages container
   messagesContainer.appendChild(messageDiv);
+  // Scroll to the latest message
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
