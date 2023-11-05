@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Simple Two-User Chat App</title>
-<!-- Include Firebase library (compatibility version) -->
+<!-- Include Firebase library -->
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 <style>
@@ -51,7 +51,6 @@
 
 <script>
   // Your web app's Firebase configuration
-  // (Use your actual configuration details here)
 const firebaseConfig = {
   apiKey: "AIzaSyDjoJLs5aBD6STfreiO09ciYbIC-zcHACg",
   authDomain: "chatassist-3a97b.firebaseapp.com",
@@ -95,14 +94,22 @@ const firebaseConfig = {
     }
   }
 
-  // Function to load and display the text file
+  // Function to load and display the text file and upload to Firestore
   function loadTextFile() {
     const fileInput = document.getElementById('text-upload');
     const file = fileInput.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = function(e) {
-        document.getElementById('uploaded-text').textContent = e.target.result;
+        const text = e.target.result;
+        document.getElementById('uploaded-text').textContent = text;
+        db.collection("shared-texts").doc("session1").set({
+          content: text,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .catch((error) => {
+          console.error("Error uploading text: ", error);
+        });
       };
       reader.readAsText(file);
     }
@@ -113,14 +120,8 @@ const firebaseConfig = {
     let text = document.getElementById('uploaded-text').textContent;
     let searchQuery = document.getElementById('search-text').value;
     const textContainer = document.getElementById('uploaded-text');
-
-    // Remove previous highlights
-    textContainer.innerHTML = text;
-
-    // Escape special characters
+    textContainer.innerHTML = text; // Remove previous highlights
     searchQuery = searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-
-    // Highlight new search terms
     if (searchQuery) {
       const pattern = new RegExp(`(${searchQuery})`, 'gi');
       const newText = text.replace(pattern, '<span class="highlight">$1</span>');
@@ -128,18 +129,30 @@ const firebaseConfig = {
     }
   }
 
-  // Real-time listener for chat
-  db.collection("messages").orderBy("timestamp")
-    .onSnapshot((querySnapshot) => {
-      const messagesContainer = document.getElementById('messages');
-      messagesContainer.innerHTML = ''; // Clear current messages
-      querySnapshot.forEach((doc) => {
-        const messageDiv = document.createElement('div');
-        messageDiv.textContent = `${doc.data().name}: ${doc.data().text}`;
-        messagesContainer.appendChild(messageDiv);
-      });
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+// Real-time listener for chat
+db.collection("messages").orderBy("timestamp")
+  .onSnapshot((querySnapshot) => {
+    const messagesContainer = document.getElementById('messages');
+    messagesContainer.innerHTML = ''; // Clear current messages
+    querySnapshot.forEach((doc) => {
+      const messageDiv = document.createElement('div');
+      messageDiv.textContent = `${doc.data().name}: ${doc.data().text}`;
+      messagesContainer.appendChild(messageDiv);
     });
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  });
+
+// Real-time listener for shared text
+db.collection("shared-texts").doc("session1")
+  .onSnapshot((doc) => {
+    if (doc.exists) {
+      const textContainer = document.getElementById('uploaded-text');
+      textContainer.textContent = doc.data().content;
+      // Call the search function to reapply highlighting if there's a search term
+      searchText();
+    }
+  });
+
 </script>
 </body>
 </html>
