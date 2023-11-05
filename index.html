@@ -15,19 +15,43 @@
     padding: 5px;
     margin-bottom: 10px;
   }
+  #message-input {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  #text-upload-container {
+    margin-bottom: 10px;
+  }
+  #uploaded-text {
+    white-space: pre-wrap; /* Since text files preserve line breaks */
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 5px;
+    margin-bottom: 10px;
+    height: 200px;
+    overflow-y: scroll;
+  }
+  .highlight {
+    background-color: yellow;
+  }
 </style>
 </head>
 <body>
 <div id="chat-container">
   <input type="text" id="username" placeholder="Enter your name" required>
-  <div id="messages"></div>
-  <input type="text" id="message" placeholder="Type a message" required>
+  <div id="text-upload-container">
+    <input type="file" id="text-upload" accept=".txt" onchange="loadTextFile()">
+    <input type="search" id="search-text" placeholder="Search text" oninput="searchText()">
+  </div>
+  <div id="uploaded-text"></div>
+  <textarea id="message-input" rows="4" placeholder="Type a message" required></textarea>
   <button onclick="sendMessage()">Send</button>
+  <div id="messages"></div>
 </div>
 
 <script>
   // Your web app's Firebase configuration
-
+  // (Use your actual configuration details here)
 const firebaseConfig = {
   apiKey: "AIzaSyDjoJLs5aBD6STfreiO09ciYbIC-zcHACg",
   authDomain: "chatassist-3a97b.firebaseapp.com",
@@ -37,6 +61,7 @@ const firebaseConfig = {
   appId: "1:604892006338:web:933b8f8ea78389defe385b",
   measurementId: "G-SLR0WFQPPS"
 };
+
   // Initialize Firebase
   const app = firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
@@ -49,7 +74,7 @@ const firebaseConfig = {
 
   // Function to send message
   function sendMessage() {
-    const messageInput = document.getElementById('message');
+    const messageInput = document.getElementById('message-input');
     const message = messageInput.value.trim();
     if (message && userName) {
       db.collection("messages").add({
@@ -70,7 +95,40 @@ const firebaseConfig = {
     }
   }
 
-  // Real-time listener
+  // Function to load and display the text file
+  function loadTextFile() {
+    const fileInput = document.getElementById('text-upload');
+    const file = fileInput.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('uploaded-text').textContent = e.target.result;
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  // Function to search and highlight text
+  function searchText() {
+    let text = document.getElementById('uploaded-text').textContent;
+    let searchQuery = document.getElementById('search-text').value;
+    const textContainer = document.getElementById('uploaded-text');
+
+    // Remove previous highlights
+    textContainer.innerHTML = text;
+
+    // Escape special characters
+    searchQuery = searchQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+    // Highlight new search terms
+    if (searchQuery) {
+      const pattern = new RegExp(`(${searchQuery})`, 'gi');
+      const newText = text.replace(pattern, '<span class="highlight">$1</span>');
+      textContainer.innerHTML = newText;
+    }
+  }
+
+  // Real-time listener for chat
   db.collection("messages").orderBy("timestamp")
     .onSnapshot((querySnapshot) => {
       const messagesContainer = document.getElementById('messages');
