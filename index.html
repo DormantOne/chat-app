@@ -6,6 +6,10 @@
 <!-- Include Firebase library -->
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-functions-compat.js"></script>
+<!-- Include Axios for HTTP requests (You can remove this since it's no longer needed for calling the API) -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
+</script>
 <!-- Include Axios for HTTP requests -->
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <style>
@@ -165,36 +169,25 @@ db.collection("shared-texts").doc("session1")
 
 // Function to generate AI response based on the last message and shared text
 function generateAIResponse(textContent, lastMessage) {
-  // For simplicity, we're using OpenAI's API directly from the client-side
-  // In a production environment, this should be done via a server to secure your API key
-  // and manage the usage to prevent abuse.
-  axios.post('https://api.openai.com/v1/chat/completions', {
-    model: "gpt-4-32k",
-    messages: [
-      {
-        role: "system",
-        content: "You are a knowledgeable assistant that provides commentary on the shared text. and last chat message"
-      },
-      {
-        role: "user",
-        content: "TEXT UNDER REVIEW: " + textContent + "\nLAST USER MESSAGE: " + lastMessage
-      }
-    ],
-    max_tokens: 150
-  }, {
-    headers: {
-      'Authorization': `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`,
-      'Content-Type': 'application/json'
-    }
-  })
-  .then(response => {
-    const aiResponse = response.data.choices[0].message.content;
-    displayAIResponse(aiResponse);
-  })
-  .catch(error => {
-    console.error("Error generating AI response: ", error);
-  });
+  // Create a callable function reference
+  const callGenerateAIResponse = firebase.functions().httpsCallable('generateAIResponse');
+
+  // Call the function and pass the message and shared text content
+  callGenerateAIResponse({textContent: textContent, lastMessage: lastMessage})
+    .then((result) => {
+      // Read result of the Cloud Function and display the AI response
+      const aiResponse = result.data.aiResponse;
+      displayAIResponse(aiResponse);
+    })
+    .catch((error) => {
+      // Getting the Error details
+      const code = error.code;
+      const message = error.message;
+      const details = error.details;
+      console.error("Error generating AI response: ", message);
+    });
 }
+
 
 // Function to display AI response in the chat
 function displayAIResponse(aiResponse) {
