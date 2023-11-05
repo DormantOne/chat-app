@@ -3,95 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <title>Simple Two-User Chat App</title>
+<!-- Include Firebase library -->
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: #f7f7f7;
-  }
-  #chat-container {
-    width: 80%;
-    max-width: 600px;
-    margin: auto;
-  }
-  #messages {
-    border: 1px solid #ddd;
-    padding: 10px;
-    height: 300px;
-    overflow-y: auto;
-    background: #fff;
-    margin-bottom: 20px;
-  }
-  #user-form {
-    display: flex;
-    margin-bottom: 10px;
-  }
-  #user-form input {
-    flex: 1;
-    padding: 10px;
-    margin-right: 10px;
-  }
-  #user-form button {
-    padding: 10px;
-  }
-  #chat-form {
-    display: flex;
-  }
-  #chat-form input {
-    flex: 1;
-    padding: 10px;
-    margin-right: 10px;
-  }
-  #chat-form button {
-    padding: 10px;
-  }
+  /* Add your styles here */
 </style>
 </head>
 <body>
 <div id="chat-container">
-  <div id="user-form">
-    <input type="text" id="username" placeholder="Enter your name" required>
-    <button onclick="enterChat()">Enter Chat</button>
-  </div>
+  <input type="text" id="username" placeholder="Enter your name" required>
   <div id="messages"></div>
-  <div id="chat-form" style="display:none;">
-    <input type="text" id="message" placeholder="Type a message" required>
-    <button onclick="sendMessage()">Send</button>
-  </div>
+  <input type="text" id="message" placeholder="Type a message" required>
+  <button onclick="sendMessage()">Send</button>
 </div>
 
 <script>
+  // Your web app's Firebase configuration
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyDjoJLs5aBD6STfreiO09ciYbIC-zcHACg",
+  authDomain: "chatassist-3a97b.firebaseapp.com",
+  projectId: "chatassist-3a97b",
+  storageBucket: "chatassist-3a97b.appspot.com",
+  messagingSenderId: "604892006338",
+  appId: "1:604892006338:web:933b8f8ea78389defe385b",
+  measurementId: "G-SLR0WFQPPS"
+};
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
   let userName = '';
 
-  function enterChat() {
-    userName = document.getElementById('username').value.trim();
-    if (userName) {
-      document.getElementById('user-form').style.display = 'none';
-      document.getElementById('chat-form').style.display = 'flex';
-    } else {
-      alert('Please enter your name to continue.');
-    }
-  }
-
+  // Function to send message
   function sendMessage() {
+    userName = document.getElementById('username').value.trim();
     const messageInput = document.getElementById('message');
     const message = messageInput.value.trim();
-    if (message) {
-      const messagesContainer = document.getElementById('messages');
-      const newMessageDiv = document.createElement('div');
-      newMessageDiv.textContent = `${userName}: ${message}`;
-      messagesContainer.appendChild(newMessageDiv);
-      messageInput.value = '';
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (message && userName) {
+      db.collection("messages").add({
+        name: userName,
+        text: message,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      })
+      .then(() => {
+        messageInput.value = '';
+      })
+      .catch((error) => {
+        console.error("Error writing message: ", error);
+      });
+    } else if (!userName) {
+      alert('Please enter your name.');
     } else {
       alert('Please type a message.');
     }
   }
+
+  // Real-time listener
+  db.collection("messages").orderBy("timestamp")
+    .onSnapshot((querySnapshot) => {
+      const messagesContainer = document.getElementById('messages');
+      messagesContainer.innerHTML = ''; // Clear current messages
+      querySnapshot.forEach((doc) => {
+        const messageDiv = document.createElement('div');
+        messageDiv.textContent = `${doc.data().name}: ${doc.data().text}`;
+        messagesContainer.appendChild(messageDiv);
+      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
 </script>
 </body>
 </html>
